@@ -111,6 +111,7 @@
             </div>
         </div>
         <select id="bankruptcy-turns" style="margin-top:-5px;">
+            <option value="1">1 Jogada</option>
             <option value="3" selected>3 Jogadas (Padrão)</option>
             <option value="5">5 Jogadas</option>
         </select>
