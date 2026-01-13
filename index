@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BolsaGame - Sistema Completo</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root { 
+            --bg-color: #0f172a; --card-bg: #1e293b; 
+            --primary: #3b82f6; --success: #10b981; --danger: #ef4444; 
+            --warning: #f59e0b; --text-main: #f8fafc; --text-muted: #94a3b8; 
+            --gold: #fbbf24;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body { background-color: var(--bg-color); color: var(--text-main); font-family: 'Inter', sans-serif; display: flex; justify-content: center; min-height: 100vh; overflow-x: hidden; }
+        .app-container { width: 100%; max-width: 480px; padding: 20px; display: flex; flex-direction: column; gap: 15px; padding-bottom: 80px; }
+        
+        h2, h3 { font-weight: 800; text-align: center; } 
+        .mono { font-family: 'Roboto Mono', monospace; }
+        .logo { text-align: center; font-size: 1.5rem; color: var(--primary); font-weight: 800; letter-spacing: 1px; margin-bottom: 5px; border-bottom: 1px solid #334155; padding-bottom: 15px; }
+        
+        input, select { width: 100%; padding: 14px; background: var(--card-bg); border: 1px solid #334155; color: white; border-radius: 10px; font-size: 1.1rem; margin-bottom: 12px; outline: none; transition: 0.3s; }
+        input:focus { border-color: var(--primary); }
+        .btn { width: 100%; padding: 16px; border-radius: 12px; border: none; font-weight: 700; font-size: 1rem; cursor: pointer; text-transform: uppercase; margin-bottom: 10px; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; color:white;}
+        .btn:active { transform: scale(0.96); }
+        .btn-primary { background: var(--primary); }
+        .btn-success { background: var(--success); }
+        .btn-danger { background: var(--danger); }
+        .btn-warning { background: var(--warning); color: #0f172a; }
+        .btn-outline { background: transparent; border: 2px solid var(--card-bg); color: var(--text-muted); }
+        .btn-small { padding: 8px 15px; font-size: 0.8rem; width: auto; display: inline-block; margin: 0 5px; }
+        
+        .tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; margin-bottom: 10px; }
+        .btn-tool { background: #334155; color: #fff; font-size: 0.9rem; padding: 12px; border: 1px solid #475569; }
+
+        .screen { display: none; animation: fadeIn 0.4s; } 
+        .screen.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .balance-card { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 25px 20px; border-radius: 20px; text-align: center; border: 1px solid #334155; box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.5); position: relative; }
+        .balance-amount { font-size: 2.5rem; font-weight: 700; color: var(--success); margin-top: 5px; word-wrap: break-word; }
+        .balance-negative { color: var(--danger) !important; }
+
+        .bankruptcy-alert {
+            background: rgba(239, 68, 68, 0.2); border: 1px solid var(--danger);
+            color: var(--danger); padding: 8px; border-radius: 10px;
+            font-size: 0.8rem; font-weight: bold; text-align: center;
+            margin-top: 10px; display: none;
+        }
+
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 5px; }
+        .history-log { margin-top: 10px; background: #161e2e; padding: 15px; border-radius: 15px; max-height: 200px; overflow-y: auto; border: 1px solid #334155; }
+        .log-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #2d3748; font-size: 0.85rem; color: #cbd5e1; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: block; flex-shrink: 0; }
+        .dot.pay { background: var(--danger); } .dot.receive { background: var(--success); } .dot.neutral { background: var(--primary); }
+
+        .loan-item { background: #2d3748; padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid var(--warning); }
+        .loan-info { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 5px; }
+        
+        .simulation-box { background: #0f172a; padding: 15px; border-radius: 10px; border: 1px solid #475569; margin-bottom: 15px; }
+        .sim-row { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 5px; color: var(--text-muted); }
+        .sim-val { color: white; font-weight: bold; }
+
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; z-index: 999; }
+        .modal.open { display: flex; }
+        .modal-content { background: var(--bg-color); width: 90%; max-width: 400px; padding: 25px; border-radius: 20px; border: 1px solid #334155; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); max-height: 90vh; overflow-y: auto; text-align: center;}
+        
+        .vote-card { border: 2px solid var(--primary); animation: pulse 1.5s infinite; }
+        .p2p-card { border: 2px solid var(--warning); animation: pulseWarning 1.5s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); } 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); } }
+        @keyframes pulseWarning { 0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); } 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); } }
+
+        .result-display { font-size: 3rem; margin: 15px 0; font-weight: bold; animation: popIn 0.3s; }
+        @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .check-group { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; text-align: left;}
+        .check-group input { width: 20px; height: 20px; margin: 0; flex-shrink: 0;}
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="logo">DINHEIRO<span style="color:var(--gold)">GAME</span></div>
+
+    <div id="screen-home" class="screen active">
+        <div style="text-align:center; padding: 30px 0;">
+            <p style="color:var(--text-muted)">Sistema Financeiro P2P</p>
+        </div>
+        <button class="btn btn-primary" onclick="showScreen('screen-create')">Criar Nova Mesa</button>
+        <button class="btn btn-outline" onclick="showScreen('screen-join')">Entrar na Mesa</button>
+    </div>
+
+    <div id="screen-create" class="screen">
+        <h2>Configurar</h2>
+        <label>Saldo Inicial:</label>
+        <select id="start-money">
+            <option value="5000">R$ 5.000</option>
+            <option value="10000" selected>R$ 10.000</option>
+            <option value="15000">R$ 15.000</option>
+        </select>
+        
+        <div class="check-group" style="background:var(--card-bg); padding:10px; border-radius:10px;">
+            <input type="checkbox" id="enable-bankruptcy" checked>
+            <div>
+                <label for="enable-bankruptcy" style="margin:0; font-weight:bold; display:block;">Falência Automática</label>
+                <small style="color:var(--text-muted)">Jogadas no negativo até falir:</small>
+            </div>
+        </div>
+        <select id="bankruptcy-turns" style="margin-top:-5px;">
+            <option value="3" selected>3 Jogadas (Padrão)</option>
+            <option value="5">5 Jogadas</option>
+        </select>
+
+        <button class="btn btn-primary" onclick="createRoomSafe()">Gerar Código</button>
+        <button class="btn btn-outline" onclick="showScreen('screen-home')">Voltar</button>
+    </div>
+
+    <div id="screen-join" class="screen">
+        <h2>Login</h2>
+        <input type="text" id="join-code" placeholder="CÓDIGO DA SALA" style="text-transform:uppercase; text-align: center; letter-spacing: 3px;">
+        <input type="text" id="player-name" placeholder="Seu Nome">
+        <button class="btn btn-success" onclick="joinRoom()">Entrar</button>
+        <button class="btn btn-outline" onclick="showScreen('screen-home')">Voltar</button>
+    </div>
+
+    <div id="screen-game" class="screen">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="mono" style="background:#334155; padding:5px 10px; border-radius:15px; font-size:0.8rem;" id="game-room-code">---</span>
+            <div style="font-weight: bold; color:white;" id="game-player-name">---</div>
+        </div>
+
+        <div class="balance-card">
+            <small style="color:var(--text-muted); text-transform:uppercase; font-size:0.7rem;">Saldo Atual</small>
+            <div class="balance-amount mono" id="game-balance">---</div>
+            <div id="bankruptcy-warning" class="bankruptcy-alert">⚠️ RISCO DE FALÊNCIA: 0/3</div>
+        </div>
+
+        <div class="tools-grid">
+            <button class="btn btn-tool" onclick="rollDice()">🎲 Jogar Dado</button>
+            <button class="btn btn-tool" onclick="checkMarketBtn()">📊 Mercado</button>
+        </div>
+
+        <div class="action-grid">
+            <button class="btn btn-danger" onclick="openModal('pay')">💸 PAGAR</button>
+            <button class="btn btn-success" onclick="openModal('receive')">💰 RECEBER</button>
+        </div>
+        
+        <button class="btn btn-warning" style="margin-top:10px" onclick="openLoanMenu()">🏦 EMPRÉSTIMOS</button>
+
+        <div class="history-log" id="logs-area">
+            <p style="text-align:center; color:#475569; font-size:0.8rem;">Aguardando...</p>
+        </div>
+
+        <button class="btn btn-outline" style="margin-top:20px; border-color:var(--danger); color:var(--danger)" onclick="confirmManualBankruptcy()">🏳️ DECLARAR FALÊNCIA</button>
+    </div>
+</div>
+
+<div id="modal-trans" class="modal">
+    <div class="modal-content">
+        <h3 id="modal-title">Transação</h3>
+        <label>Valor (R$)</label>
+        <input type="tel" id="trans-val" placeholder="R$ 0,00" oninput="maskCurrency(this)">
+        <label>Selecionar Alvo:</label>
+        <select id="trans-target"><option value="BANK">🏛 BANCO</option></select>
+        <button class="btn btn-primary" id="btn-confirm-trans">CONFIRMAR</button>
+        <button class="btn btn-outline" onclick="closeModal('modal-trans')">CANCELAR</button>
+    </div>
+</div>
+
+<div id="modal-voting" class="modal">
+    <div class="modal-content vote-card">
+        <h3 style="color:var(--primary)">🗳️ APROVAÇÃO DO GRUPO</h3>
+        <p id="vote-msg" style="margin-bottom:20px; font-size:1.1rem; text-align:center;">...</p>
+        <p style="text-align:center; color:var(--text-muted); font-size:0.8rem; margin-bottom:15px;">Todos devem aceitar.</p>
+        <div style="display:none" id="vote-id"></div>
+        <div style="display:flex; gap:10px;">
+            <button class="btn btn-success" onclick="castVote(true)">👍 SIM</button>
+            <button class="btn btn-danger" onclick="castVote(false)">👎 NÃO</button>
+        </div>
+    </div>
+</div>
+
+<div id="modal-p2p-approve" class="modal">
+    <div class="modal-content p2p-card">
+        <h3 style="color:var(--warning)">🔔 COBRANÇA</h3>
+        <p id="p2p-msg" style="margin-bottom:20px; font-size:1.2rem; text-align:center;">Fulano quer receber R$ 500</p>
+        <div style="display:none" id="p2p-req-id"></div>
+        <button class="btn btn-success" onclick="approveP2P(true)">✅ PAGAR AGORA</button>
+        <button class="btn btn-danger" onclick="approveP2P(false)">❌ RECUSAR</button>
+    </div>
+</div>
+
+<div id="modal-p2p-lend" class="modal">
+    <div class="modal-content p2p-card">
+        <h3 style="color:var(--warning)">🤝 PEDIDO DE EMPRÉSTIMO</h3>
+        <p id="lend-msg" style="margin-bottom:10px; font-size:1rem; text-align:center;">Fulano quer R$ 500 emprestado</p>
+        
+        <label style="color:white; text-align:left;">Defina a Taxa de Juros (%):</label>
+        <input type="number" id="lend-rate-input" placeholder="Ex: 10" style="margin-bottom:10px;">
+        
+        <div style="display:none" id="lend-req-id"></div>
+        <div style="display:none" id="lend-amount"></div>
+        <div style="display:none" id="lend-requester"></div>
+
+        <button class="btn btn-success" onclick="approveLend(true)">✅ EMPRESTAR</button>
+        <button class="btn btn-danger" onclick="approveLend(false)">❌ RECUSAR</button>
+    </div>
+</div>
+
+<div id="modal-loan" class="modal">
+    <div class="modal-content">
+        <h3>🏦 Central de Crédito</h3>
+        
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <button class="btn-tool" style="flex:1" onclick="toggleLoanTab('new')">Novo</button>
+            <button class="btn-tool" style="flex:1" onclick="toggleLoanTab('pay')">Minhas Dívidas</button>
+        </div>
+
+        <div id="loan-tab-new">
+            <label>De quem?</label>
+            <select id="loan-source" onchange="checkLoanSource()">
+                <option value="BANK">🏛 BANCO</option>
+                </select>
+
+            <label>Valor Solicitado:</label>
+            <input type="tel" id="loan-amount" placeholder="R$ 0,00" oninput="maskCurrency(this)">
+            
+            <div id="bank-loan-options">
+                <label>Prazo (Rodadas):</label>
+                <input type="range" id="loan-turns" min="1" max="20" value="5" oninput="updateLoanSim()">
+                <div style="text-align:right; font-weight:bold; color:var(--primary); margin-bottom:15px;" id="loan-turns-display">5 Rodadas</div>
+
+                <div style="background:#1e293b; padding:10px; border-radius:10px; margin-bottom:15px; text-align:left;">
+                    <label style="margin-bottom:5px; display:block;">Garantia (Opcional):</label>
+                    <input type="text" id="loan-collateral-name" placeholder="Nome (Ex: Carro)" style="margin-bottom:5px;">
+                    
+                    <div style="display:flex; gap:5px; margin-bottom:5px;">
+                        <button class="btn btn-small btn-outline" onclick="checkCollateralMarket()">Ver Mercado</button>
+                        <div id="collateral-market-res" style="font-weight:bold; align-self:center;"></div>
+                    </div>
+                    <input type="tel" id="loan-collateral-val" placeholder="Valor (R$)" disabled oninput="maskCurrency(this)">
+                </div>
+                
+                <div class="simulation-box">
+                    <div class="sim-row"><span>Taxa:</span> <span class="sim-val" id="sim-final-rate">0%</span></div>
+                    <div class="sim-total">
+                        JUROS ACUMULADOS POR DADO: <span id="sim-final-val" style="color:var(--danger)">R$ 0,00</span>
+                    </div>
+                </div>
+                <button class="btn btn-success" onclick="requestBankLoan()">SOLICITAR AO BANCO</button>
+            </div>
+
+            <div id="player-loan-options" style="display:none; text-align:center; padding:20px;">
+                <p style="color:var(--text-muted)">A solicitação será enviada ao jogador.<br>Ele definirá os juros e aceitará ou não.</p>
+                <button class="btn btn-success" onclick="requestPlayerLoan()">ENVIAR PEDIDO</button>
+            </div>
+        </div>
+
+        <div id="loan-tab-pay" style="display:none;">
+            <div id="active-loans-list" style="max-height:150px; overflow-y:auto; margin-bottom:15px;"></div>
+            <label>Abater:</label>
+            <input type="tel" id="pay-loan-amount" placeholder="R$ 0,00" oninput="maskCurrency(this)">
+            <button class="btn btn-primary" onclick="payLoanPartial()">PAGAR PARTE</button>
+            <button class="btn btn-success" onclick="payLoanFull()">QUITAR</button>
+        </div>
+
+        <button class="btn btn-outline" style="margin-top:15px" onclick="closeModal('modal-loan')">FECHAR</button>
+    </div>
+</div>
+
+<div id="modal-broadcast" class="modal">
+    <div class="modal-content">
+        <h4 id="bc-player" style="color:var(--text-muted); text-transform:uppercase; letter-spacing:2px;">JOGADOR</h4>
+        <h2 id="bc-title" style="margin:10px 0;">TIROU NO DADO</h2>
+        <div id="bc-display" class="result-display">?</div>
+        <p id="bc-desc" style="color:#cbd5e1;">...</p>
+        <button class="btn btn-outline" onclick="closeModal('modal-broadcast')">OK</button>
+    </div>
+</div>
+<script>
+    // --- CONFIGURAÇÃO FIREBASE ---
+    // (Mantenha suas chaves aqui se já tiver, ou use este bloco padrão para testar)
+    const firebaseConfig = {
+      apiKey: "AIzaSyBdJAy6jxgEWhk4RFMTC_slpMXO72111Bc",
+      authDomain: "dinheirogame-fc1cf.firebaseapp.com",
+      projectId: "dinheirogame-fc1cf",
+      storageBucket: "dinheirogame-fc1cf.firebasestorage.app",
+      messagingSenderId: "443010613834",
+      appId: "1:443010613834:web:a4f89f37c57141eb765cb3",
+      measurementId: "G-E7M01KP2CF"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // --- ESTADO LOCAL ---
+    let myCode = "", myName = "", myBalance = 0;
+    let totalPlayers = 0;
+    let selectedLoanId = null; 
+    let activeLoans = [];
+    let myNegativeTurns = 0;
+    let bankruptcyLimit = 3;
+
+    // --- FUNÇÕES UTILITÁRIAS ---
+    function maskCurrency(input) {
+        let val = input.value.replace(/\D/g, "");
+        if (val === "") { 
+            input.value = ""; 
+            if(input.id.includes('loan')) updateLoanSim(); 
+            return; 
+        }
+        val = (parseInt(val) / 100).toFixed(2) + "";
+        val = val.replace(".", ",").replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
+        input.value = "R$ " + val;
+        if(input.id.includes('loan')) updateLoanSim();
+    }
+    function parseCurrency(str) {
+        if(!str) return 0;
+        return parseFloat(str.replace("R$", "").replace(/\./g, "").replace(",", ".").trim());
+    }
+    function formatMoney(val) { return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+    function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+    function pushLog(c, n, t) { db.ref(`rooms/${c}/logs`).push({ text: `${n} ${t}`, time: Date.now() }); }
+
+    // --- SETUP INICIAL ---
+    function performAutoCleanup() {
+        const cutoff = Date.now() - (24 * 60 * 60 * 1000);
+        db.ref('rooms').get().then(snap => {
+            if(snap.exists()) {
+                snap.forEach(child => {
+                    if(child.val().createdAt < cutoff) db.ref(`rooms/${child.key}`).remove();
+                });
+            }
+        });
+    }
+
+    function createRoomSafe() {
+        performAutoCleanup();
+        const money = parseInt(document.getElementById('start-money').value);
+        const limit = document.getElementById('enable-bankruptcy').checked ? parseInt(document.getElementById('bankruptcy-turns').value) : 999;
+        let code = Math.random().toString(36).substring(2, 6).toUpperCase();
+        
+        db.ref(`rooms/${code}`).get().then(snap => {
+            if(snap.exists()) createRoomSafe();
+            else {
+                db.ref('rooms/' + code).set({ initialMoney: money, bankruptcyLimit: limit, createdAt: Date.now() });
+                document.getElementById('join-code').value = code;
+                alert("Sala criada: " + code);
+                showScreen('screen-join');
+            }
+        });
+    }
+
+    function joinRoom() {
+        const code = document.getElementById('join-code').value.toUpperCase().trim();
+        const name = document.getElementById('player-name').value.trim();
+        if(!code || !name) return alert("Preencha tudo!");
+
+        db.ref(`rooms/${code}`).get().then(snap => {
+            if(snap.exists()) {
+                const rData = snap.val();
+                bankruptcyLimit = rData.bankruptcyLimit || 3;
+                db.ref(`rooms/${code}/players/${name}`).get().then(pSnap => {
+                    if(!pSnap.exists()) {
+                        db.ref(`rooms/${code}/players/${name}`).update({ balance: rData.initialMoney, negativeTurns: 0 });
+                        pushLog(code, name, "entrou na sala.");
+                    }
+                    startGame(code, name);
+                });
+            } else alert("Sala não encontrada!");
+        });
+    }
+
+    // --- LÓGICA DO JOGO ---
+    function startGame(code, name) {
+        myCode = code; myName = name;
+        showScreen('screen-game');
+        document.getElementById('game-room-code').innerText = code;
+        document.getElementById('game-player-name').innerText = name;
+
+        // 1. Ouvintes Básicos (Saldo, Jogadores, Logs, Broadcast)
+        setupBasicListeners(code, name);
+
+        // 2. Ouvinte de Votação (Banco)
+        db.ref(`rooms/${code}/votes`).on('child_added', snap => {
+            const vote = snap.val();
+            if(vote.status === 'pending' && vote.requester !== myName) {
+                if(!vote.voters || !vote.voters[myName]) {
+                    document.getElementById('vote-msg').innerText = `${vote.requester}: ${vote.desc}`;
+                    document.getElementById('vote-id').innerText = snap.key;
+                    document.getElementById('modal-voting').classList.add('open');
+                }
+            }
+        });
+        db.ref(`rooms/${code}/votes`).on('child_changed', snap => handleVoteResult(snap));
+
+        // 3. Ouvinte de Cobrança P2P (Alguém quer receber de mim)
+        db.ref(`rooms/${code}/p2p_requests`).on('child_added', snap => {
+            const req = snap.val();
+            if(req.target === myName && req.status === 'pending') {
+                document.getElementById('p2p-msg').innerText = `${req.requester} quer receber ${formatMoney(req.amount)}`;
+                document.getElementById('p2p-req-id').innerText = snap.key;
+                document.getElementById('modal-p2p-approve').classList.add('open');
+            }
+        });
+
+        // 4. Ouvinte de Pedido de Empréstimo P2P (Alguém quer que eu empreste)
+        db.ref(`rooms/${code}/loan_requests`).on('child_added', snap => {
+            const req = snap.val();
+            if(req.lender === myName && req.status === 'pending') {
+                document.getElementById('lend-msg').innerText = `${req.borrower} pede ${formatMoney(req.amount)} emprestado.`;
+                document.getElementById('lend-req-id').innerText = snap.key;
+                document.getElementById('lend-amount').innerText = req.amount;
+                document.getElementById('lend-requester').innerText = req.borrower;
+                document.getElementById('modal-p2p-lend').classList.add('open');
+            }
+        });
+    }
+
+    function setupBasicListeners(code, name) {
+        // Saldo
+        db.ref(`rooms/${code}/players/${name}`).on('value', snap => {
+            const p = snap.val();
+            if(!p) return;
+            myBalance = p.balance || 0;
+            myNegativeTurns = p.negativeTurns || 0;
+            const balEl = document.getElementById('game-balance');
+            balEl.innerText = formatMoney(myBalance);
+            if(myBalance < 0) {
+                balEl.classList.add('balance-negative');
+                document.getElementById('bankruptcy-warning').style.display = 'block';
+                document.getElementById('bankruptcy-warning').innerText = `⚠️ RISCO DE FALÊNCIA: ${myNegativeTurns}/${bankruptcyLimit}`;
+            } else {
+                balEl.classList.remove('balance-negative');
+                document.getElementById('bankruptcy-warning').style.display = 'none';
+            }
+        });
+
+        // Jogadores (para os selects)
+        db.ref(`rooms/${code}/players`).on('value', snap => {
+            const p = snap.val() || {};
+            totalPlayers = Object.keys(p).length;
+            const opts = Object.keys(p).filter(u => u !== myName).map(u => `<option value="${u}">👤 ${u}</option>`).join('');
+            document.getElementById('trans-target').innerHTML = '<option value="BANK">🏛 BANCO</option>' + opts;
+            document.getElementById('loan-source').innerHTML = '<option value="BANK">🏛 BANCO</option>' + opts;
+        });
+
+        // Empréstimos Ativos
+        db.ref(`rooms/${code}/loans`).on('value', snap => {
+            activeLoans = [];
+            const list = document.getElementById('active-loans-list');
+            list.innerHTML = '';
+            if(snap.val()) {
+                Object.entries(snap.val()).forEach(([key, loan]) => {
+                    if(loan.borrower === myName && loan.amount > 0) {
+                        activeLoans.push({id: key, ...loan});
+                        const lenderName = loan.lender === 'BANK' ? '🏛 Banco' : `👤 ${loan.lender}`;
+                        // CORREÇÃO: Mostra nome E valor da garantia se houver
+                        let garantiaTxt = "";
+                        if(loan.collateralName) {
+                            garantiaTxt = `<br><small style="color:var(--gold)">🔐 ${loan.collateralName} (${formatMoney(loan.collateralValue || 0)})</small>`;
+                        }
+                        
+                        list.innerHTML += `
+                            <div class="loan-item" onclick="selectLoan('${key}')" id="loan-card-${key}">
+                                <div class="loan-info"><span>${lenderName}</span> <span>${loan.rate}%/rod</span></div>
+                                <div class="loan-val">${formatMoney(loan.amount)}${garantiaTxt}</div>
+                            </div>`;
+                    }
+                });
+            }
+        });
+
+        // Broadcast
+        db.ref(`rooms/${code}/broadcast`).on('value', snap => {
+            const bc = snap.val();
+            if(bc && bc.time > (Date.now() - 5000)) {
+                document.getElementById('bc-player').innerText = bc.player;
+                document.getElementById('bc-title').innerText = bc.title;
+                document.getElementById('bc-display').innerHTML = bc.html;
+                document.getElementById('bc-desc').innerText = bc.desc;
+                document.getElementById('modal-broadcast').classList.add('open');
+            }
+        });
+        
+        // Logs
+        db.ref(`rooms/${code}/logs`).on('value', snap => {
+            const list = document.getElementById('logs-area');
+            list.innerHTML = '';
+            if(snap.val()) Object.values(snap.val()).reverse().forEach(log => list.innerHTML += `<div class="log-item"><span class="dot neutral"></span><span>${log.text}</span></div>`);
+        });
+    }
+
+    // --- TRANSAÇÕES (PAGAR/RECEBER) ---
+    let currentAction = "";
+    
+    function openModal(type) {
+        currentAction = type;
+        const modal = document.getElementById('modal-trans');
+        modal.classList.add('open');
+        document.getElementById('modal-title').innerText = type === 'pay' ? "Pagar" : "Receber";
+        document.getElementById('trans-val').value = '';
+    }
+
+    document.getElementById('btn-confirm-trans').onclick = () => {
+        const val = parseCurrency(document.getElementById('trans-val').value);
+        const target = document.getElementById('trans-target').value;
+        if(val <= 0) return alert("Valor inválido");
+
+        if(currentAction === 'pay') {
+            // Pagamento Direto (Permite ficar negativo)
+            db.ref(`rooms/${myCode}/players/${myName}/balance`).set(myBalance - val);
+            
+            if(target !== 'BANK') {
+                db.ref(`rooms/${myCode}/players/${target}/balance`).get().then(s => {
+                    db.ref(`rooms/${myCode}/players/${target}/balance`).set((s.val()||0) + val);
+                    pushLog(myCode, myName, `pagou ${formatMoney(val)} para ${target}`);
+                });
+            } else {
+                pushLog(myCode, myName, `pagou ${formatMoney(val)} ao Banco`);
+            }
+            closeModal('modal-trans');
+
+        } else {
+            // Receber (Solicitação)
+            if(target === 'BANK') {
+                createVote(`receber ${formatMoney(val)} do Banco`, 'bank_withdraw', val);
+            } else {
+                // Cria pedido P2P
+                db.ref(`rooms/${myCode}/p2p_requests`).push({
+                    requester: myName, target: target, amount: val, status: 'pending'
+                });
+                alert(`Cobrança enviada para ${target}. Ele deve aceitar.`);
+            }
+            closeModal('modal-trans');
+        }
+    };
+
+    // Aprovar Cobrança P2P
+    function approveP2P(isYes) {
+        const reqId = document.getElementById('p2p-req-id').innerText;
+        const msg = document.getElementById('p2p-msg').innerText;
+        const amount = parseCurrency(msg.split('R$')[1]); // Extrai valor do texto (gambiarra segura aqui)
+        // Melhor pegar do banco, mas para simplificar:
+        
+        db.ref(`rooms/${myCode}/p2p_requests/${reqId}`).get().then(snap => {
+            const req = snap.val();
+            if(!req) return;
+            
+            if(isYes) {
+                // Executa pagamento
+                db.ref(`rooms/${myCode}/players/${myName}/balance`).set(myBalance - req.amount);
+                db.ref(`rooms/${myCode}/players/${req.requester}/balance`).get().then(s => {
+                    db.ref(`rooms/${myCode}/players/${req.requester}/balance`).set((s.val()||0) + req.amount);
+                });
+                pushLog(myCode, myName, `pagou ${formatMoney(req.amount)} para ${req.requester} (Cobrança Aceita)`);
+            } else {
+                // Recusa
+                pushLog(myCode, myName, `recusou pagar ${req.requester}.`);
+            }
+            db.ref(`rooms/${myCode}/p2p_requests/${reqId}`).remove();
+            closeModal('modal-p2p-approve');
+        });
+    }
+
+    // --- SISTEMA DE EMPRÉSTIMOS ---
+    function checkLoanSource() {
+        const src = document.getElementById('loan-source').value;
+        if(src === 'BANK') {
+            document.getElementById('bank-loan-options').style.display = 'block';
+            document.getElementById('player-loan-options').style.display = 'none';
+        } else {
+            document.getElementById('bank-loan-options').style.display = 'none';
+            document.getElementById('player-loan-options').style.display = 'block';
+        }
+    }
+
+    // 1. Empréstimo do BANCO
+    function requestBankLoan() {
+        const sim = updateLoanSim();
+        const colName = document.getElementById('loan-collateral-name').value;
+        const colVal = parseCurrency(document.getElementById('loan-collateral-val').value);
+
+        if(sim.amount <= 0) return alert("Valor inválido");
+        if(colVal > 0 && !colName) return alert("Dê um nome para a garantia!");
+
+        let desc = `pegar empréstimo de ${formatMoney(sim.amount)} (Taxa: ${sim.rate.toFixed(1)}%)`;
+        if(colName) desc += ` deixando "${colName}" (Valor: ${formatMoney(colVal)}) de garantia.`;
+
+        createVote(desc, 'bank_loan', sim.amount, { rate: sim.rate, colName: colName, colVal: colVal });
+        closeModal('modal-loan');
+    }
+
+    // 2. Empréstimo de JOGADOR
+    function requestPlayerLoan() {
+        const lender = document.getElementById('loan-source').value;
+        const amount = parseCurrency(document.getElementById('loan-amount').value);
+        if(amount <= 0) return alert("Valor inválido");
+
+        db.ref(`rooms/${myCode}/loan_requests`).push({
+            borrower: myName, lender: lender, amount: amount, status: 'pending'
+        });
+        alert(`Pedido enviado para ${lender}. Aguarde ele definir os juros e aceitar.`);
+        closeModal('modal-loan');
+    }
+
+    // Jogador define taxa e aceita emprestar
+    function approveLend(isYes) {
+        const reqId = document.getElementById('lend-req-id').innerText;
+        const amount = parseFloat(document.getElementById('lend-amount').innerText);
+        const borrower = document.getElementById('lend-requester').innerText;
+        const rate = parseFloat(document.getElementById('lend-rate-input').value);
+
+        if(isYes) {
+            if(!rate) return alert("Defina a taxa de juros!");
+            if(myBalance < amount) return alert("Você não tem saldo para emprestar!");
+
+            // Executa: Tira de mim (Lender), Dá pro Borrower, Cria Dívida
+            db.ref(`rooms/${myCode}/players/${myName}/balance`).set(myBalance - amount);
+            
+            db.ref(`rooms/${myCode}/players/${borrower}/balance`).get().then(s => {
+                db.ref(`rooms/${myCode}/players/${borrower}/balance`).set((s.val()||0) + amount);
+            });
+
+            const loanId = db.ref(`rooms/${myCode}/loans`).push().key;
+            db.ref(`rooms/${myCode}/loans/${loanId}`).set({
+                borrower: borrower, lender: myName, amount: amount, rate: rate
+            });
+
+            pushLog(myCode, myName, `emprestou ${formatMoney(amount)} para ${borrower} a ${rate}%/rodada.`);
+        } else {
+            pushLog(myCode, myName, `recusou emprestar para ${borrower}.`);
+        }
+        
+        db.ref(`rooms/${myCode}/loan_requests/${reqId}`).remove();
+        closeModal('modal-p2p-lend');
+    }
+
+    // --- DADO & JUROS (CORREÇÃO DE LÓGICA) ---
+    function rollDice() {
+        const dice = Math.floor(Math.random() * 6) + 1;
+        let desc = "";
+
+        // Falência Check
+        if(myBalance < 0) {
+            const newCount = myNegativeTurns + 1;
+            db.ref(`rooms/${myCode}/players/${myName}`).update({ negativeTurns: newCount });
+            if(newCount >= bankruptcyLimit) {
+                createVote(`estourou o limite (${newCount}/${bankruptcyLimit}). Expulsar?`, 'force_bankruptcy', 0);
+                desc += " ⚠️ LIMITE DE FALÊNCIA!";
+            } else desc += ` (Negativo: ${newCount}/${bankruptcyLimit})`;
+        } else if(myNegativeTurns > 0) db.ref(`rooms/${myCode}/players/${myName}`).update({ negativeTurns: 0 });
+
+        // JUROS: Soma na dívida (NÃO no saldo)
+        if(activeLoans.length > 0) {
+            const updates = {};
+            let totalJuros = 0;
+            activeLoans.forEach(loan => {
+                const interest = loan.amount * (loan.rate / 100);
+                updates[`rooms/${myCode}/loans/${loan.id}/amount`] = loan.amount + interest;
+                totalJuros += interest;
+            });
+            db.ref().update(updates);
+            desc += ` | Juros Acumulados na Dívida: ${formatMoney(totalJuros)}`;
+        } else {
+            desc += ` | Ande ${dice} casas.`;
+        }
+
+        pushLog(myCode, myName, `tirou ${dice}.${desc}`);
+        db.ref(`rooms/${myCode}/broadcast`).set({ player: myName, title: "TIROU NO DADO", html: `🎲 ${dice}`, desc: desc, time: Date.now() });
+    }
+
+    // --- MERCADO & GARANTIAS ---
+    function checkMarketBtn() {
+        const opts = [{t:'ALTA', i:'📈', c:'var(--success)'}, {t:'ESTÁVEL', i:'➖', c:'var(--warning)'}, {t:'BAIXA', i:'📉', c:'var(--danger)'}];
+        const r = opts[Math.floor(Math.random()*3)];
+        pushLog(myCode, myName, `checou mercado: ${r.t}`);
+        db.ref(`rooms/${myCode}/broadcast`).set({ player: myName, title: "MERCADO", html: `<span style="color:${r.c}">${r.i} ${r.t}</span>`, desc: "Atualizem seus preços.", time: Date.now() });
+    }
+
+    function checkCollateralMarket() {
+        const opts = [{t:'ALTA', i:'📈', c:'var(--success)'}, {t:'ESTÁVEL', i:'➖', c:'var(--warning)'}, {t:'BAIXA', i:'📉', c:'var(--danger)'}];
+        const r = opts[Math.floor(Math.random()*3)];
+        document.getElementById('collateral-market-res').innerHTML = `<span style="color:${r.c}">${r.i} ${r.t}</span>`;
+        document.getElementById('loan-collateral-val').disabled = false;
+    }
+
+    // --- SIMULADOR ---
+    function updateLoanSim() {
+        const amount = parseCurrency(document.getElementById('loan-amount').value);
+        const turns = parseInt(document.getElementById('loan-turns').value);
+        const colVal = parseCurrency(document.getElementById('loan-collateral-val').value);
+        
+        document.getElementById('loan-turns-display').innerText = turns + " Rodadas";
+        let rate = (amount < 20000 ? 5 : (amount < 50000 ? 10 : 15));
+        if(turns > 5) rate += (turns - 5) * 0.5;
+        if(colVal > 0) rate -= (colVal/amount >= 0.8 ? 4 : 2); 
+
+        rate = Math.max(1, rate);
+        document.getElementById('sim-final-rate').innerText = rate.toFixed(1) + "%";
+        document.getElementById('sim-final-val').innerText = formatMoney(amount * (rate/100));
+        return { rate, amount };
+    }
+
+    // --- PAGAMENTOS DE EMPRÉSTIMO ---
+    function openLoanMenu() { document.getElementById('modal-loan').classList.add('open'); toggleLoanTab('new'); updateLoanSim(); }
+    function toggleLoanTab(tab) {
+        document.getElementById('loan-tab-new').style.display = tab === 'new' ? 'block' : 'none';
+        document.getElementById('loan-tab-pay').style.display = tab === 'pay' ? 'block' : 'none';
+    }
+    
+    function selectLoan(id) { 
+        selectedLoanId = id; 
+        document.querySelectorAll('.loan-item').forEach(el=>el.style.border='none'); 
+        document.getElementById('loan-card-'+id).style.border='2px solid white'; 
+    }
+    
+    function payLoanPartial() { if(!selectedLoanId) return alert("Selecione!"); processLoanPayment(parseCurrency(document.getElementById('pay-loan-amount').value)); }
+    function payLoanFull() { if(!selectedLoanId) return alert("Selecione!"); processLoanPayment(activeLoans.find(l=>l.id===selectedLoanId).amount); }
+    
+    function processLoanPayment(val) {
+        if(val <= 0) return alert("Valor inválido");
+        if(myBalance < val) return alert("Sem saldo!");
+        
+        const loan = activeLoans.find(l=>l.id===selectedLoanId);
+        
+        // Paga (Debita de mim)
+        db.ref(`rooms/${myCode}/players/${myName}/balance`).set(myBalance - val);
+        
+        // Se for jogador, credita nele
+        if(loan.lender !== 'BANK') {
+            db.ref(`rooms/${myCode}/players/${loan.lender}/balance`).get().then(s => {
+                db.ref(`rooms/${myCode}/players/${loan.lender}/balance`).set((s.val()||0) + val);
+            });
+        }
+        
+        const newAmt = loan.amount - val;
+        if(newAmt <= 1) { // Quitado
+            db.ref(`rooms/${myCode}/loans/${selectedLoanId}`).remove();
+            pushLog(myCode, myName, `quitou empréstimo com ${loan.lender === 'BANK' ? 'o Banco' : loan.lender}.`);
+        } else {
+            db.ref(`rooms/${myCode}/loans/${selectedLoanId}/amount`).set(newAmt);
+            pushLog(myCode, myName, `abateu ${formatMoney(val)} da dívida.`);
+        }
+        document.getElementById('pay-loan-amount').value = '';
+    }
+
+    // --- VOTAÇÕES E FALÊNCIA ---
+    function createVote(desc, type, amount, data = {}) {
+        db.ref(`rooms/${myCode}/votes`).push({
+            requester: myName, desc: desc, type: type, amount: amount, data: data,
+            status: 'pending', yes_count: 0, voters: {}
+        });
+        if(type !== 'force_bankruptcy') alert("⏳ Aguarde a aprovação.");
+    }
+
+    function castVote(isYes) {
+        const voteId = document.getElementById('vote-id').innerText;
+        db.ref(`rooms/${myCode}/votes/${voteId}`).transaction(vote => {
+            if(!vote || vote.status !== 'pending') return vote;
+            if(!isYes) {
+                vote.status = 'rejected'; 
+            } else {
+                if(!vote.voters) vote.voters = {};
+                vote.voters[myName] = true;
+                vote.yes_count = (vote.yes_count || 0) + 1;
+                if(vote.yes_count >= (totalPlayers - 1)) vote.status = 'approved';
+            }
+            return vote;
+        });
+        document.getElementById('modal-voting').classList.remove('open');
+    }
+
+    function handleVoteResult(snap) {
+        const vote = snap.val();
+        if(vote.requester === myName) {
+            if(vote.status === 'approved') {
+                if(vote.type === 'bank_withdraw') {
+                    db.ref(`rooms/${myCode}/players/${myName}/balance`).set(myBalance + vote.amount);
+                    pushLog(myCode, myName, `sacou ${formatMoney(vote.amount)}.`);
+                } else if (vote.type === 'bank_loan') {
+                    const loanId = db.ref(`rooms/${myCode}/loans`).push().key;
+                    db.ref(`rooms/${myCode}/players/${myName}/balance`).set(myBalance + vote.amount);
+                    // CORREÇÃO: Salva dados da garantia
+                    db.ref(`rooms/${myCode}/loans/${loanId}`).set({
+                        borrower: myName, lender: 'BANK', amount: vote.amount, 
+                        rate: vote.data.rate, 
+                        collateralName: vote.data.colName,
+                        collateralValue: vote.data.colVal
+                    });
+                    pushLog(myCode, myName, `pegou empréstimo.`);
+                } else if (vote.type === 'force_bankruptcy') {
+                    alert("💀 Você faliu!");
+                    db.ref(`rooms/${myCode}/players/${myName}`).remove();
+                    location.reload();
+                }
+                alert("✅ Aprovado!");
+                db.ref(`rooms/${myCode}/votes/${snap.key}`).remove(); 
+            } else if (vote.status === 'rejected') {
+                if(vote.type === 'force_bankruptcy') {
+                    alert("😅 Ganhou mais uma chance.");
+                    db.ref(`rooms/${myCode}/players/${myName}`).update({ negativeTurns: Math.max(0, myNegativeTurns - 1) });
+                } else alert("❌ Recusado.");
+                db.ref(`rooms/${myCode}/votes/${snap.key}`).remove(); 
+            }
+        }
+    }
+
+    function confirmManualBankruptcy() {
+        if(confirm("Confirmar falência e sair do jogo?")) {
+            pushLog(myCode, myName, "DECLAROU FALÊNCIA!");
+            db.ref(`rooms/${myCode}/players/${myName}`).remove();
+            alert("Saiu.");
+            location.reload();
+        }
+    }
+</script>
+</body>
+</html>	
